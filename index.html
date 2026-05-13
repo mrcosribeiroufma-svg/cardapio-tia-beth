@@ -590,25 +590,58 @@ window.addEventListener('load', () => {
 });
 
 // ── PDF VIA PRINT ──
-function baixarPDF() {
-  document.querySelectorAll('.topbar,.tabs,.bottom-bar,.preview-btns,.tip,.toast').forEach(el => {
-    el.setAttribute('data-hide','1');
-    el.style.display='none';
-  });
-  document.getElementById('tela-form').style.display='none';
-  document.getElementById('tela-preview').style.display='block';
-  document.getElementById('tela-preview').classList.add('active');
-  setTimeout(() => {
-    window.print();
-    setTimeout(() => {
-      document.querySelectorAll('[data-hide]').forEach(el => {
-        el.removeAttribute('data-hide');
-        el.style.display='';
+async function gerarImagem() {
+    const btn = document.getElementById('btn-share');
+    if (!btn) return;
+    btn.textContent = '⏳ Gerando...';
+    btn.disabled = true;
+    showToast('⏳ Capturando cardápio...');
+
+    try {
+      const el = document.getElementById('cardapio');
+
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        backgroundColor: '#141414',
+        useCORS: false,
+        allowTaint: true,
+        logging: false,
+        imageTimeout: 0,
+        removeContainer: true
       });
-      irPara('preview');
-    }, 1000);
-  }, 300);
-}
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) { showToast('Erro ao gerar imagem'); return; }
+        const file = new File([blob], 'cardapio-tia-beth.jpg', { type: 'image/jpeg' });
+
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          try {
+            await navigator.share({ files: [file], title: 'Cardapio Tia Beth', text: 'Cardapio de hoje!' });
+            showToast('Compartilhado!');
+          } catch(e) {
+            if (e.name !== 'AbortError') {
+              window.open(URL.createObjectURL(blob), '_blank');
+              showToast('Segure a imagem para salvar');
+            }
+          }
+        } else {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'cardapio-tia-beth.jpg';
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          showToast('Imagem salva!');
+        }
+        btn.textContent = 'Salvar & Compartilhar';
+        btn.disabled = false;
+      }, 'image/jpeg', 0.92);
+
+    } catch(e) {
+      console.error(e);
+      showToast('Erro: ' + e.message);
+      btn.textContent = 'Salvar & Compartilhar';
+      btn.disabled = false;
+    }
+  }
 </script>
 </body>
 </html>
